@@ -1,5 +1,5 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { 
   Leaf, 
   CheckCircle2, 
@@ -31,12 +31,14 @@ import {
   BookOpen,
   ShoppingBag,
   PackageCheck,
-  ShoppingBasket
+  ShoppingBasket,
+  RotateCw,
+  Gem
 } from 'lucide-react';
 import { getGutHealthAdvice } from './services/geminiService';
 import { FoodItem, MealPlan, Recipe } from './types';
 
-type View = 'home' | 'diet' | 'pantang' | 'regimen' | 'tips' | 'calendar' | 'recipes';
+type View = 'home' | 'diet' | 'pantang' | 'regimen' | 'tips' | 'calendar' | 'recipes' | 'spinner';
 
 const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<View>('home');
@@ -46,6 +48,10 @@ const App: React.FC = () => {
   const [selectedDay, setSelectedDay] = useState(0);
   const [selectedRecipeId, setSelectedRecipeId] = useState<string | null>('ayam-kicap');
   
+  // Spinner state
+  const [isSpinning, setIsSpinning] = useState(false);
+  const [spinnerResult, setSpinnerResult] = useState<Recipe | null>(null);
+
   // Chat state
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState<{ role: 'user' | 'bot'; text: string }[]>([]);
@@ -104,10 +110,10 @@ const App: React.FC = () => {
         'Isi kuali elektrik dengan air, halia, dan serai.',
         'Set suhu tinggi sehingga mendidih.',
         'Masukkan ikan merah. Kecilkan suhu ke sederhana.',
-        'Masak selama 5 minit sehingga isi ikan putih dan pejal.',
+        'Masak selama 5 minit sehingga isi ikan putih and pejal.',
         'Perasakan dengan garam bukit sebelum tutup suis.'
       ],
-      tips: 'Zero Oil! Ikan merah kaya dengan protein mudah hadam dan sup halia membantu buang angin.'
+      tips: 'Zero Oil! Ikan merah kaya dengan protein mudah hadam and sup halia membantu buang angin.'
     },
     {
       id: 'siakap-bakar',
@@ -121,8 +127,8 @@ const App: React.FC = () => {
         'Secubit Garam Bukit'
       ],
       steps: [
-        'Bersihkan ikan siakap dan kelar badannya.',
-        'Lumur dengan kunyit, halia, dan garam.',
+        'Bersihkan ikan siakap and kelar badannya.',
+        'Lumur with kunyit, halia, and garam.',
         'Panaskan kuali elektrik pada suhu sederhana (Tanpa Minyak).',
         'Letak ikan, masukkan serai dalam perut ikan.',
         'Tutup kuali elektrik. Panggang 8-10 minit setiap belah sehingga garing.'
@@ -140,7 +146,7 @@ const App: React.FC = () => {
         'Secubit Garam Bukit'
       ],
       steps: [
-        'Lumur ikan jenahak dengan kunyit, halia, dan garam.',
+        'Lumur ikan jenahak dengan kunyit, halia, and garam.',
         'Panaskan kuali elektrik suhu sederhana (Non-stick mode).',
         'Letak ikan (Tanpa Minyak). Tutup kuali supaya isi dalam masak dengan wap panas.',
         'Balikkan perlahan-lahan selepas 6 minit sehingga kedua-dua belah garing.'
@@ -161,7 +167,7 @@ const App: React.FC = () => {
         '1 Sdt Garam'
       ],
       steps: [
-        'Masukkan air, kunyit, halia, serai, dan asam keping ke dalam kuali elektrik.',
+        'Masukkan air, kunyit, halia, serai, and asam keping ke dalam kuali elektrik.',
         'Didihkan dengan suhu tinggi.',
         'Masukkan ikan selar. Masak sehingga kuah meresap ke dalam ikan.',
         'Perasakan dengan garam. Menu ini tidak menggunakan minyak langsung.'
@@ -179,7 +185,7 @@ const App: React.FC = () => {
         'Secubit Garam Bukit'
       ],
       steps: [
-        'Perap dada ayam dengan sos tiram, halia, dan garam selama 15 minit.',
+        'Perap dada ayam dengan sos tiram, halia, and garam selama 15 minit.',
         'Panaskan kuali elektrik pada suhu sederhana.',
         'Grill ayam (Tanpa Minyak). Tutup kuali.',
         'Masak 5-7 minit setiap belah sehingga garing di luar tapi juicy di dalam.'
@@ -200,7 +206,7 @@ const App: React.FC = () => {
         'Rebus selama 8-10 minit (Hard boiled).',
         'Rendam air sejuk sekejap sebelum dikupas.'
       ],
-      tips: 'Zero Oil. Protein yang paling mudah dan selamat untuk memulakan hari anda.'
+      tips: 'Zero Oil. Protein yang paling mudah and selamat untuk memulakan hari anda.'
     },
     {
       id: 'omelet-sawi',
@@ -212,7 +218,7 @@ const App: React.FC = () => {
         '1 Sdt Kicap Masin'
       ],
       steps: [
-        'Pukul telur bersama kicap masin dan sawi.',
+        'Pukul telur bersama kicap masin and sawi.',
         'Guna suhu rendah kuali elektrik (Tanpa Minyak).',
         'Tuang adunan, biar masak rata.',
         'Lipat dua bila bahagian bawah sudah stabil.',
@@ -250,7 +256,7 @@ const App: React.FC = () => {
         'Didihkan air bersama halia dalam kuali elektrik.',
         'Pecahkan telur satu persatu ke dalam air mendidih (Jangan kacau kuat).',
         'Biar telur mengeras sikit.',
-        'Perasakan dengan garam dan angkat.'
+        'Perasakan dengan garam and angkat.'
       ],
       tips: 'Zero Oil. Menu yang sangat menyelesakan bila perut rasa tidak enak.'
     },
@@ -272,104 +278,20 @@ const App: React.FC = () => {
         'Tutup suis kuali elektrik segera untuk elak sayur lembek.'
       ],
       tips: 'Zero Oil. Labu manis memberikan tekstur "creamy" pada sup sayur bening.'
-    },
-    {
-      id: 'telur-kicap-halia',
-      title: 'Telur Kicap Halia',
-      category: 'Sarapan',
-      ingredients: [
-        '2 Biji Telur',
-        '2 Sdm Kicap Manis',
-        '1/2 Sdm Kicap Masin',
-        '1 Inci Halia (Hiris mancis)',
-        '1 Sdm Air'
-      ],
-      steps: [
-        'Goreng telur mata menggunakan kuali elektrik suhu rendah (Tanpa Minyak).',
-        'Angkat telur. Dalam kuali yang sama, masukkan sedikit air dan kicap.',
-        'Masukkan halia, masak sehingga halia layu dan kuah mendidih.',
-        'Curahkan kuah kicap halia di atas telur tadi.'
-      ],
-      tips: 'Tanpa Minyak. Menu paling ekspres menggunakan bahan sedia ada di dapur anda.'
-    },
-    {
-      id: 'ikan-singgang',
-      title: 'Singgang Ikan Kembung',
-      category: 'Utama',
-      ingredients: [
-        '2 Ekor Ikan Kembung',
-        '2 Inci Halia (Hiris)',
-        '1 Batang Serai (Ketuk)',
-        '1 Keping Asam Keping',
-        '500ml Air',
-        '1 Sdt Garam'
-      ],
-      steps: [
-        'Masukkan air, halia, serai, and asam keping ke dalam kuali elektrik.',
-        'Set suhu tinggi sehingga air mendidih.',
-        'Masukkan ikan kembung. Kecilkan suhu sedikit.',
-        'Masak sehingga ikan masak sepenuhnya (mata ikan jadi putih).',
-        'Tambah garam dan tutup suis.'
-      ],
-      tips: 'Zero Oil. Kuah singgang sangat bagus untuk diminum bagi melegakan angin dalam perut.'
-    },
-    {
-      id: 'ayam-bakar',
-      title: 'Ayam Bakar Kuali',
-      category: 'Utama',
-      ingredients: [
-        '2 Ketul Ayam (Thigh/Breast)',
-        '2 Sdm Kicap Manis',
-        '1 Sdm Sos Tiram',
-        '2 Inci Halia (Ketuk)',
-        'Secubit Garam'
-      ],
-      steps: [
-        'Perap ayam dengan semua bahan selama 20 minit.',
-        'Panaskan kuali elektrik suhu sederhana (Medium).',
-        'Panggang ayam dalam kuali (Tanpa Minyak). Tutup kuali supaya ayam masak sekata.',
-        'Terbalikkan bila nampak keperangan. Masak sehingga garing.'
-      ],
-      tips: 'Tanpa Minyak. Gunakan penutup kuali elektrik untuk mengekalkan kelembapan ayam.'
-    },
-    {
-      id: 'bubur-nasi',
-      title: 'Bubur Nasi Halia',
-      category: 'Sarapan',
-      ingredients: [
-        '1 Mangkuk Nasi Putih',
-        '3-4 Mangkuk Air',
-        '1 Inci Halia (Hiris halus)',
-        '1/2 Sdt Garam'
-      ],
-      steps: [
-        'Masukkan nasi and air ke dalam kuali elektrik.',
-        'Masak dengan suhu sederhana-tinggi.',
-        'Kacau selalu supaya nasi hancur. Masukkan halia.',
-        'Masak sehingga menjadi bubur pekat. Tambah garam di akhir.'
-      ],
-      tips: 'Zero Oil. Menu yang sangat lembut untuk dinding usus yang sensitif.'
-    },
-    {
-      id: 'sayur-bening',
-      title: 'Sayur Masak Bening',
-      category: 'Sayur',
-      ingredients: [
-        '1 Ikat Sawi / Bayam',
-        '50g Labu Manis',
-        '1 Inci Halia (Hiris)',
-        '400ml Air',
-        '1/2 Sdt Garam'
-      ],
-      steps: [
-        'Rebus labu manis bersama air and halia sehingga labu empuk.',
-        'Masukkan sayur hijau.',
-        'Tutup suis segera apabila sayur layu untuk elak terlebih masak.',
-        'Perasakan dengan garam.'
-      ],
-      tips: 'Zero Oil. Sayur bening memberikan hidrasi dan serat yang mudah hadam.'
     }
   ];
+
+  const handleSpin = () => {
+    setIsSpinning(true);
+    setSpinnerResult(null);
+    
+    // Simulate spinning delay
+    setTimeout(() => {
+      const randomIndex = Math.floor(Math.random() * recipes.length);
+      setSpinnerResult(recipes[randomIndex]);
+      setIsSpinning(false);
+    }, 2500);
+  };
 
   const handleChat = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -398,6 +320,83 @@ const App: React.FC = () => {
     { day: 'Sabtu', breakfast: 'Scrambled Eggs + Buah Naga', lunch: 'Nasi Basmathi + Chicken Grill + Sawi', dinner: 'Sup Ikan + Nasi + Kiwi', snack: 'Pisang' },
     { day: 'Ahad', breakfast: 'Telur Mata + Nasi Putih Sedikit', lunch: 'Ikan Bakar Cicah Air Asam (No Chili) + Nasi', dinner: 'Ayam Panggang + Sayur Bening', snack: 'Anggur Merah' }
   ];
+
+  const SpinnerView = () => (
+    <div className="animate-in slide-in-from-bottom-10 duration-700 pt-28 px-6 pb-24 max-w-4xl mx-auto text-center">
+      <div className="bg-emerald-50 text-emerald-600 inline-block p-6 rounded-[32px] mb-8 shadow-inner">
+        <Sparkles className={`w-12 h-12 ${isSpinning ? 'animate-pulse' : ''}`} />
+      </div>
+      <h2 className="text-5xl font-black text-slate-900 mb-6 tracking-tighter">Meal Wheel</h2>
+      <p className="text-slate-500 mb-12 font-medium">Tak tahu nak makan apa? Biar GutGuard pilihkan untuk anda.</p>
+
+      <div className="relative mb-16 flex justify-center items-center">
+        {/* Main Circle Wheel */}
+        <div className={`w-80 h-80 rounded-full border-8 border-slate-100 flex items-center justify-center bg-white shadow-2xl relative transition-all duration-700 ${isSpinning ? 'scale-105' : 'scale-100'}`}>
+          
+          {/* Orbiting Diamond Spinner */}
+          <div className={`absolute inset-0 z-20 ${isSpinning ? 'animate-spin' : 'hidden'}`} style={{ animationDuration: '0.6s' }}>
+             <div className="absolute top-0 left-1/2 -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-emerald-500 rotate-45 shadow-lg border-2 border-white flex items-center justify-center">
+                <div className="w-2 h-2 bg-white rounded-full"></div>
+             </div>
+          </div>
+
+          {!isSpinning && !spinnerResult && (
+             <div className="text-slate-300 font-black text-xl uppercase tracking-widest flex flex-col items-center gap-4">
+                <Gem className="w-12 h-12 text-slate-100" />
+                Sedia?
+             </div>
+          )}
+          
+          {isSpinning && (
+             <div className="flex flex-col items-center gap-4 animate-pulse">
+                <ChefHat className="w-16 h-16 text-emerald-200" />
+                <p className="text-xs font-black text-emerald-400 uppercase tracking-[0.3em]">Memilih...</p>
+             </div>
+          )}
+          
+          {spinnerResult && !isSpinning && (
+             <div className="animate-in zoom-in duration-500 text-center px-10 relative z-30">
+               <div className="bg-emerald-50 text-emerald-600 w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4 rotate-12">
+                  <ChefHat className="w-6 h-6" />
+               </div>
+               <p className="text-[10px] font-black text-emerald-600 uppercase mb-2 tracking-widest">{spinnerResult.category}</p>
+               <h3 className="text-2xl font-black text-slate-900 leading-tight tracking-tighter">{spinnerResult.title}</h3>
+             </div>
+          )}
+          
+          {/* Static Pointer - Visible only when stopped */}
+          {!isSpinning && (
+            <div className="absolute -top-4 left-1/2 -translate-x-1/2 w-8 h-8 bg-slate-900 rotate-45 rounded-sm shadow-lg border-2 border-white"></div>
+          )}
+        </div>
+      </div>
+
+      <button 
+        onClick={handleSpin}
+        disabled={isSpinning}
+        className="group bg-slate-900 text-white px-12 py-6 rounded-[32px] font-black text-xl shadow-2xl shadow-slate-900/20 hover:bg-slate-800 active:scale-95 transition-all disabled:opacity-50 relative overflow-hidden"
+      >
+        <span className="relative z-10 flex items-center gap-3">
+          {isSpinning ? 'SEDANG MEMUSING...' : 'PUSING RODA MAKANAN'}
+          {!isSpinning && <RotateCw className="w-6 h-6 group-hover:rotate-180 transition-transform duration-500" />}
+        </span>
+      </button>
+
+      {spinnerResult && !isSpinning && (
+        <div className="mt-12 animate-in fade-in slide-in-from-bottom-5 duration-500">
+          <button 
+            onClick={() => {
+              setSelectedRecipeId(spinnerResult.id);
+              navigate('recipes');
+            }}
+            className="bg-emerald-50 text-emerald-600 px-8 py-4 rounded-2xl font-black flex items-center gap-3 mx-auto hover:bg-emerald-100 transition-all border border-emerald-100"
+          >
+            LIHAT CARA MASAK <ArrowRight className="w-5 h-5" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   const RecipesView = () => {
     const selectedRecipe = recipes.find(r => r.id === selectedRecipeId) || recipes[0];
@@ -430,6 +429,14 @@ const App: React.FC = () => {
                 <p className="text-xl font-bold">Electric Kuali</p>
                 <p className="text-xs text-slate-400 mt-2">Fokus: <b>Zero/Tanpa Minyak</b>. Gunakan permukaan non-stick & penutup untuk kesan bakar yang sihat.</p>
               </div>
+            </div>
+
+            <div className="bg-pink-500 text-white p-8 rounded-[40px] shadow-xl flex flex-col items-center text-center cursor-pointer hover:bg-pink-400 transition-all group" onClick={() => navigate('spinner')}>
+               <div className="bg-white/20 p-4 rounded-3xl mb-4 group-hover:scale-110 transition-transform">
+                  <RotateCw className="w-10 h-10 group-hover:rotate-180 transition-transform duration-700" />
+               </div>
+               <h3 className="font-black text-xl mb-1">Meal Wheel</h3>
+               <p className="text-xs font-medium opacity-80">Tak tahu nak masak apa? Klik sini!</p>
             </div>
 
             <div className="bg-amber-50 border border-amber-100 p-8 rounded-[40px] shadow-sm">
@@ -578,14 +585,15 @@ const App: React.FC = () => {
           </span>
         </h1>
         <p className="text-xl text-slate-500 max-w-2xl mx-auto mb-12 leading-relaxed font-medium">
-          Panduan lengkap diet Low FODMAP & Probiotik untuk warga Malaysia yang ingin bebas dari kembung dan angin.
+          Panduan lengkap diet Low FODMAP & Probiotik untuk warga Malaysia yang ingin bebas dari kembung and angin.
         </p>
         
-        <div className="grid grid-cols-2 lg:grid-cols-6 gap-4 max-w-7xl mx-auto mb-16">
+        <div className="grid grid-cols-2 lg:grid-cols-7 gap-4 max-w-[1400px] mx-auto mb-16 px-4">
           {[
             { id: 'diet', label: 'Diet List', icon: <Utensils />, color: 'bg-emerald-600' },
             { id: 'calendar', label: 'Jadual Makan', icon: <CalendarIcon />, color: 'bg-blue-600' },
             { id: 'recipes', label: 'Resipi Masak', icon: <ChefHat />, color: 'bg-orange-500' },
+            { id: 'spinner', label: 'Meal Wheel', icon: <RotateCw />, color: 'bg-pink-500' },
             { id: 'regimen', label: 'Protokol', icon: <Clock />, color: 'bg-indigo-600' },
             { id: 'tips', label: 'Tips Ritual', icon: <Sparkles />, color: 'bg-amber-500' },
             { id: 'pantang', label: 'Zon Merah', icon: <Ban />, color: 'bg-red-500' },
@@ -598,12 +606,12 @@ const App: React.FC = () => {
               <div className={`${item.color} text-white p-4 rounded-[20px] group-hover:rotate-6 transition-transform shadow-lg`}>
                 {item.icon}
               </div>
-              <span className="font-extrabold text-slate-800 text-xs tracking-tight">{item.label}</span>
+              <span className="font-extrabold text-slate-800 text-[10px] uppercase tracking-tighter text-center leading-tight">{item.label}</span>
             </button>
           ))}
         </div>
 
-        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[50px] p-10 md:p-16 text-white text-left relative overflow-hidden shadow-2xl">
+        <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-[50px] p-10 md:p-16 text-white text-left relative overflow-hidden shadow-2xl max-w-7xl mx-auto">
            <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
            <div className="relative z-10 flex flex-col md:flex-row items-center gap-12">
               <div className="flex-1">
@@ -617,8 +625,8 @@ const App: React.FC = () => {
                   <button onClick={() => navigate('tips')} className="bg-emerald-500 hover:bg-emerald-400 text-white px-10 py-5 rounded-3xl font-black flex items-center gap-3 transition-all transform active:scale-95 shadow-lg shadow-emerald-500/20">
                     MULAKAN RITUAL <ArrowRight className="w-6 h-6" />
                   </button>
-                  <button onClick={() => navigate('recipes')} className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-8 py-5 rounded-3xl font-black flex items-center gap-3 transition-all">
-                    DAPUR GUTGUARD <ChefHat className="w-5 h-5" />
+                  <button onClick={() => navigate('spinner')} className="bg-white/10 hover:bg-white/20 text-white border border-white/20 px-8 py-5 rounded-3xl font-black flex items-center gap-3 transition-all">
+                    MEAL WHEEL <RotateCw className="w-5 h-5" />
                   </button>
                 </div>
               </div>
@@ -956,6 +964,7 @@ const App: React.FC = () => {
               { id: 'diet', label: 'Diet' },
               { id: 'calendar', label: 'Jadual' },
               { id: 'recipes', label: 'Resipi' },
+              { id: 'spinner', label: 'Wheel' },
               { id: 'regimen', label: 'Protokol' },
               { id: 'tips', label: 'Ritual' },
               { id: 'pantang', label: 'Pantang' }
@@ -996,6 +1005,7 @@ const App: React.FC = () => {
               { id: 'diet', label: 'Diet List', icon: <Utensils /> },
               { id: 'calendar', label: 'Jadual Makan', icon: <CalendarIcon /> },
               { id: 'recipes', label: 'Resipi Masak', icon: <ChefHat /> },
+              { id: 'spinner', label: 'Meal Wheel', icon: <RotateCw /> },
               { id: 'regimen', label: 'Protokol', icon: <Clock /> },
               { id: 'tips', label: 'Tips Ritual', icon: <Sparkles /> },
               { id: 'pantang', label: 'Zon Merah', icon: <Ban /> }
@@ -1022,6 +1032,7 @@ const App: React.FC = () => {
         {currentView === 'pantang' && <PantangView />}
         {currentView === 'regimen' && <RegimenView />}
         {currentView === 'tips' && <TipsView />}
+        {currentView === 'spinner' && <SpinnerView />}
       </main>
 
       {/* Persistent AI Assistant */}
