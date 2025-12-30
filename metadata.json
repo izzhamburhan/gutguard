@@ -1,0 +1,8 @@
+{
+  "name": "Gut Health & Low FODMAP Guide",
+  "description": "A beautiful, interactive landing page providing a comprehensive guide for gut health recovery using Low FODMAP diet principles and specific probiotic regimens.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone"
+  ]
+}
